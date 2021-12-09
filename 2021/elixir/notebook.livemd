@@ -1,0 +1,156 @@
+# D5
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.4.0"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+```elixir
+defmodule Parse do
+  def pair_op(pair) do
+    pair
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.map(&String.to_integer/1)
+  end
+
+  def line_op(line) do
+    line
+    |> String.split("->", trim: true)
+    |> Enum.map(&pair_op/1)
+  end
+end
+
+parsed =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Parse.line_op/1)
+```
+
+```elixir
+defmodule Day5T do
+  import Nx.Defn
+
+  defn z(t) do
+    t
+    |> Nx.add(3)
+  end
+end
+
+Day5T.z(Nx.tensor([3, 3]))
+```
+
+```elixir
+defmodule Day5 do
+  import Nx.Defn
+
+  defn slice_add_val(tensor, x0, y0, dx, dy, val) do
+    new_val =
+      tensor
+      |> Nx.slice([x0, y0], [dx + 1, dy + 1])
+      |> Nx.add(1)
+
+    Nx.put_slice(tensor, [x0, y0], new_val)
+  end
+
+  def add_line(data, prev_tensor) do
+    [[a, b], [c, d]] = data
+    x0 = min(c, a)
+    y0 = min(b, d)
+    dx = abs(c - a)
+    dy = abs(b - d)
+
+    case {dx, dy} do
+      {0, 0} ->
+        prev_tensor
+
+      {0, _} ->
+        prev_tensor
+        |> slice_add_val(x0, y0, dx, dy, 1)
+
+      {_, 0} ->
+        prev_tensor
+        |> slice_add_val(x0, y0, dx, dy, 1)
+
+      _ ->
+        prev_tensor
+    end
+  end
+end
+
+parsed
+|> Enum.reduce(Nx.broadcast(0, {1000, 1000}), &Day5.add_line/2)
+|> Nx.greater_equal(2)
+|> Nx.sum()
+```
+
+```elixir
+defmodule Day5P2 do
+  import Nx.Defn
+
+  defn slice_add_val(tensor, x0, y0, dx, dy, val) do
+    new_val =
+      tensor
+      |> Nx.slice([x0, y0], [dx + 1, dy + 1])
+      |> Nx.add(val)
+
+    Nx.put_slice(tensor, [x0, y0], new_val)
+  end
+
+  defn add_shape(data, prev_tensor) do
+    [[a, b], [c, d]] = data
+    x0 = min(c, a)
+    y0 = min(b, d)
+    dx = abs(c - a)
+    dy = abs(b - d)
+
+    case {dx, dy} do
+      {0, 0} ->
+        prev_tensor
+
+      {0, _} ->
+        prev_tensor
+        |> slice_add_val(x0, y0, dx, dy, 1)
+
+      {_, 0} ->
+        prev_tensor
+        |> slice_add_val(x0, y0, dx, dy, 1)
+
+      _ ->
+        cond do
+          dx == dy ->
+            new_val =
+              prev_tensor
+              |> Nx.slice([x0, y0], [dx + 1, dy + 1])
+              |> Nx.add(Nx.eye(dx + 1))
+
+            Nx.put_slice(prev_tensor, [x0, y0], new_val)
+
+          dx == -dy ->
+            new_val =
+              prev_tensor
+              |> Nx.slice([x0, y0], [dx + 1, dy + 1])
+              |> Nx.add(Nx.reverse(Nx.eye(dx + 1)))
+
+            Nx.put_slice(prev_tensor, [x0, y0], new_val)
+        end
+
+        prev_tensor
+    end
+  end
+end
+
+parsed
+|> Enum.reduce(Nx.broadcast(0, {1000, 1000}), &Day5P2.add_shape/2)
+|> Nx.greater_equal(2)
+|> Nx.sum()
+```
