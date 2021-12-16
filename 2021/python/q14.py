@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+import matplotlib.pyplot as plt
 
 content = """
 NNCB
