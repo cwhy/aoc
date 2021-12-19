@@ -1,12 +1,8 @@
-import operator
 from collections import defaultdict, Counter
-from pprint import pprint
-from typing import List, Tuple, Callable, Dict, Set, Any
+from typing import List, Tuple, Callable, Dict, Set
 
 import numpy as np
 import numpy.typing as npt
-from numpy import ndarray, dtype
-from numpy.typing._generic_alias import ScalarType
 
 test_content1 = """
 --- scanner 0 ---
@@ -205,8 +201,9 @@ test_content3 = """
 with open('2021/input19.txt') as file:
     content = file.read()
 
+Data = List[Tuple[int, ...]]
 
-Data = List[Tuple[int, int, int]]
+
 def parse(_content) -> List[Tuple[int, Data]]:
     _scanner_datas = _content.strip().split('\n\n')
     scanner_content = []
@@ -221,22 +218,6 @@ def parse(_content) -> List[Tuple[int, Data]]:
 def find_dist(data):
     data_t = data.reshape(data.shape[0], 1, data.shape[1])
     return np.einsum('ijk, ijk->ij', data - data_t, data - data_t)
-
-
-def process_scanner_all(scanner_data):
-    scanner_no, raw_data = scanner_data
-    n_data = len(raw_data)
-    dist_matrix = find_dist(np.array(raw_data))
-    la, lb = np.array(np.triu_indices(n_data, k=1))
-    dist_dict = {
-        dist_matrix[a, b]: (a, b) for a, b in zip(la, lb)
-    }
-    index_dict = defaultdict(set)
-    for k, (a, b) in dist_dict.items():
-        index_dict[a].add(k)
-    return scanner_no, dist_dict, index_dict
-
-
 
 
 def process_scanner(raw_data: Data) -> Dict[int, Set[int]]:
