@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import defaultdict
 from operator import add, mul, floordiv, eq, mod
 from pprint import pprint
-from typing import List, Callable, Dict, NamedTuple, Literal, Union
+from typing import List, Callable, Dict, NamedTuple, Literal, Union, Optional, Tuple
 
 test_contents = """
 inp w
@@ -31,6 +31,8 @@ Ops = Literal['add', 'mul', 'div', 'mod', 'eql']
 class Inputs(NamedTuple):
     n: int
 
+    inputs_tag: Literal['INPUTS'] = 'INPUTS'
+
     def __repr__(self):
         return f'w{self.n}'
 
@@ -51,10 +53,50 @@ OpC = Union[Ref, int, Inputs]
 op_symbols = {'add': '+', 'mul': '*', 'div': '/', 'mod': '%', 'eql': '='}
 
 
+def get_range(opc: OpC, graph: Dict[Ref, TOp]) -> Tuple[int, int]:
+    if isinstance(opc, Inputs) or hasattr(opc, "inputs_tag"):
+        return 1, 9
+    elif isinstance(opc, int):
+        return opc, opc
+    elif isinstance(opc, Ref):
+        return get_range(opc.get(graph), graph)
+    elif isinstance(opc, Op) or isinstance(opc, NestedOp) or hasattr(opc, "op"):
+        return opc.rrange(graph)
+    else:
+        print(opc)
+        print(isinstance(opc, Inputs))
+        print(type(opc))
+        raise ValueError(f'Unknown opc type: {type(opc)}')
+
+
 class Op(NamedTuple):
     op: Ops
     a: OpC
     b: OpC
+
+    def rrange(self, graph: Dict[Ref, TOp]) -> Tuple[int, int]:
+        arange = get_range(self.a, graph)
+        brange = get_range(self.b, graph)
+        if self.op == 'eql':
+            if arange[1] < brange[0] or brange[1] < arange[0]:
+                return 0, 0
+            elif arange[1] == brange[0] == arange[0] == brange[1]:
+                return 1, 1
+            else:
+                return 0, 1
+        elif self.op == 'mod':
+            return 0, brange[1]
+        elif self.op == 'div':
+            if brange[0] > arange[1] > arange[0] > 0:
+                return 0, 0
+            vals = arange[0] // brange[1], arange[1] // brange[0], arange[1] // brange[1], arange[0] // brange[0]
+            return min(vals), max(vals)
+        elif self.op == 'mul':
+            vals = arange[0] * brange[0], arange[1] * brange[1], arange[0] * brange[1], arange[1] * brange[0]
+            return min(vals), max(vals)
+        else:
+            assert self.op == 'add'
+            return arange[0] + brange[0], arange[1] + brange[1]
 
     def refs(self):
         if isinstance(self.a, Ref):
@@ -129,8 +171,13 @@ class Op(NamedTuple):
             assert op == 'eql'
             if a == b:
                 return 1
-            else:
-                return Op(op, a, b)
+            elif isinstance(a, Inputs):
+                if isinstance(b, int):
+                    return int(1 <= b <= 9)
+            elif isinstance(b, Inputs):
+                if isinstance(a, int):
+                    return int(1 <= a <= 9)
+            return Op(op, a, b)
 
     def __repr__(self):
         return f'{self.a} {op_symbols[self.op]} {self.b}'
@@ -144,6 +191,36 @@ class NestedOp(NamedTuple):
     @property
     def nest(self):
         return self
+
+    def rrange(self, graph: Dict[Ref, TOp]) -> Tuple[int, int]:
+        if isinstance(self.a, Op) or isinstance(self.a, NestedOp):
+            arange = self.a.rrange(graph)
+        else:
+            arange = get_range(self.a, graph)
+
+        if isinstance(self.b, Op) or isinstance(self.b, NestedOp):
+            brange = self.b.rrange(graph)
+        else:
+            brange = get_range(self.b, graph)
+
+        if self.op == 'eql':
+            if arange[1] < brange[0] or brange[1] < arange[0]:
+                return 0, 0
+            elif arange[1] == brange[0] == arange[0] == brange[1]:
+                return 1, 1
+            else:
+                return 0, 1
+        elif self.op == 'mod':
+            return 0, brange[1]
+        elif self.op == 'div':
+            vals = arange[0] // brange[1], arange[1] // brange[0], arange[1] // brange[1], arange[0] // brange[0]
+            return min(vals), max(vals)
+        elif self.op == 'mul':
+            vals = arange[0] * brange[0], arange[1] * brange[1], arange[0] * brange[1], arange[1] * brange[0]
+            return min(vals), max(vals)
+        else:
+            assert self.op == 'add'
+            return arange[0] + brange[0], arange[1] + brange[1]
 
     def __repr__(self):
         a = f"({self.a})" if isinstance(self.a, NestedOp) or isinstance(self.a, Op) else repr(self.a)
@@ -199,7 +276,7 @@ pprint(compute_graph)
 final = Ref('z', step['z'])
 print(len(compute_graph))
 # %%
-ops_graph = {k: v.eval(compute_graph) for k, v in compute_graph.items() if isinstance(v, Op)}
+ops_graph: Dict[Ref, Op] = {k: v.eval(compute_graph) for k, v in compute_graph.items() if isinstance(v, Op)}
 ops_graph
 # %%
 # pprint(forward_ref)
@@ -207,31 +284,65 @@ ops_graph
 # pprint(trimmed_graph)
 # print(len(trimmed_graph), len(ops_graph))
 # %%
-inputs = {
-    Inputs(0): 9,
-    Inputs(1): 9,
-    Inputs(2): 9,
-    Inputs(3): 9,
-    Inputs(4): 9,
-    Inputs(5): 9,
-    Inputs(6): 9,
-    Inputs(7): 9,
-    Inputs(8): 9,
-    Inputs(9): 9,
-    Inputs(10): 9,
-    Inputs(11): 9,
-    Inputs(12): 9,
-    Inputs(13): 9
+ops_graph[ops_graph[final].a], ops_graph[ops_graph[final].b]
+
+# %%
+fixed = {
+         Ref('x', 11): 0,
+         Ref('x', 17): 0,
+         Ref('x', 23): 0,
+         Ref('x', 41): 0,
+         Ref('x', 53): 0,
+         Ref('x', 65): 0,
+         Ref('x', 12): 1,
+         Ref('x', 18): 1,
+         Ref('x', 24): 1,
+         Ref('x', 42): 1,
+         Ref('x', 54): 1,
+         Ref('x', 66): 1,
+    #   Ref('x', 72): 0,
+    #    Ref('x', 78): 0,
+    #     Ref('x', 84): 0,
 }
 val_graph = ops_graph.copy()
+val_graph.update(fixed)
+old_len = len(val_graph)
+val_graph = {k: v.eval(val_graph) for k, v in val_graph.items() if isinstance(v, Op)}
+while old_len != len(val_graph):
+    old_len = len(val_graph)
+    val_graph = {k: v.eval(val_graph) for k, v in val_graph.items() if isinstance(v, Op)}
+    if isinstance(val_graph[final], Ref):
+        val_graph[final] = val_graph[val_graph[final]]
+    print(len(val_graph), val_graph[final])
+
+# %%
+inputs = {
+     Inputs(0): 5,
+     Inputs(1): 1,
+     Inputs(2): 9,
+#       Inputs(3): 3,
+#  #     Inputs(4): 9,
+#  #     Inputs(5): 3,
+#       Inputs(6): 9,
+#       Inputs(7): 7,
+#       Inputs(8): 9,
+#       Inputs(9): 8,
+# #      Inputs(10): 9,
+#  #     Inputs(11): i,
+#  #     Inputs(12): i,
+#  #    Inputs(13): 9,
+}
+val_graph = val_graph.copy()
 val_graph = {k: v.calc(val_graph, inputs) for k, v in val_graph.items()}
 old_len = len(val_graph)
 val_graph = {k: v.eval(val_graph) for k, v in val_graph.items() if isinstance(v, Op)}
 while old_len != len(val_graph):
     old_len = len(val_graph)
     val_graph = {k: v.eval(val_graph) for k, v in val_graph.items() if isinstance(v, Op)}
+    if isinstance(val_graph[final], Ref):
+        val_graph[final] = val_graph[val_graph[final]]
     print(len(val_graph), val_graph[final])
-
+print(val_graph[final].rrange(val_graph))
 
 
 # %%
@@ -250,8 +361,53 @@ def visualize(in_graph):
             graph[next_ref] = graph[next_ref].nest.deref(ref, graph[ref])
             del graph[ref]
     pprint(graph)
+    return graph
 
 
-visualize(val_graph)
+nested_g = visualize(val_graph)
+print(nested_g[final].rrange(nested_g))
+print(nested_g[Ref('z', 39)].rrange(nested_g))
 # pprint(compute_graph)
 # print(compute_graph[('z', step['z'])])
+for k, v in nested_g.items():
+    a, b = v.rrange(nested_g)
+    if a == b:
+        nested_g[k] = a
+pprint(nested_g)
+
+# %%
+# by hand we can find
+# 20 -> 21 * 26 - 9 (537) -> 526 * 26 - 12 (13976) ->
+# z39 -> z36 ->              z33
+# (13976 -6) //26 (537) -> 538 * 26 - 13 -> (13975 -4)//26 ( 537) -> 538 * 26 - 14 -> (13974 -2) //26 (537) ->
+#            z30 ->           z27               z24                      z21          z18
+# 538 * 26 - 7 -> 13982 * 26 -9 (363523) ->  (363523 -4)//26 (13981) -> (13981 - 5) //26 (537) -> (537 - 17) //26 (20)
+#        z15                 z12                    z9                    z6                          y7
+# => w0 + 15 <= 20 => w0 <= 5
+# try w0 = 5 => w1 <= 1 => w2 <=9 try w2=9 =>
+#x84 = 0
+range_of_z39 = 12, 20
+corresbonding_w13 = 1, 9
+# further deduction with forward range bound:
+
+
+# %%
+# if x78 == 0
+# range_of_z36 = 26 * range_of_z39[0], 26 * range_of_z39[1]
+# add restrition of x
+# range_of_z36 = 26 * 9, 26 * 17
+# hence
+range_of_z36 = 26 * 12, 26 * 17
+corresbonding_w12 = 4, 9
+
+# if x78 == 1
+# the forward range of z36 is too large
+
+# if x72 == 1
+# range_of_z33 = 26 * range_of_z36[0], 26 * range_of_z36[1]
+# range_of_z33 = 26 * 12, 26 * 15
+corresbonding_w11 = 7, 9
+# range of z30 = range_of_z33 - w10 - 5
+# range of z30 = (26 * 12 - 14, 26 * 15 - 6) / 26 = 13, 14
+# corresbonding w10 = 1, 9
+# range of z27 =
