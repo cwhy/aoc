@@ -1,16 +1,12 @@
 # AOC2022
 
-```elixir
-Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```elixir Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
 ```
 
 ## Setup
 
 ```elixir
-session_id =
-  "session_id"
-
-# session_id = "session_id"
+session_id = System.fetch_env!("AOC_SESSION_ID")
 ```
 
 ## Day1
@@ -838,11 +834,11 @@ defmodule D10 do
       |> Enum.join("\n")
       |> IO.puts()
 
-    q1
+    {q1, q2}
   end
 end
 
-D10.process(test_input2)
+# D10.process(test_input2)
 D10.process(puzzle_input)
 ```
 
@@ -998,7 +994,7 @@ defmodule D11 do
   end
 end
 
-D11.process(test_input1)
+# D11.process(test_input1)
 D11.process(puzzle_input)
 ```
 
@@ -1149,7 +1145,7 @@ defmodule D12 do
 end
 
 # :eprof.start_profiling([self()])
-D12.process(test_input1)
+# D12.process(test_input1)
 D12.process(puzzle_input)
 # :eprof.stop_profiling()
 # :eprof.analyze()
@@ -1158,7 +1154,7 @@ D12.process(puzzle_input)
 ## D13
 
 ```elixir
-{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "12", session_id)
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "13", session_id)
 
 test_input_1_box = Kino.Input.textarea("Test Input 1")
 ```
@@ -1171,6 +1167,6 @@ defmodule D13 do
   end
 end
 
-D12.process(test_input1)
+# D12.process(test_input1)
 D12.process(puzzle_input)
 ```
