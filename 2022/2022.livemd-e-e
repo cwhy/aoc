@@ -1,0 +1,1176 @@
+# AOC2022
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Setup
+
+```elixir
+session_id =
+  "53616c7465645f5fe7615a765c9cc8622342295fc7b9caac62e5b59a599ab343d6021c6add1969277c510dcddd87eefa5dc4f4ea14fd67d3bbba34d21ea2f91c"
+
+# session_id = "session_id"
+```
+
+## Day1
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "1", session_id)
+```
+
+```elixir
+process_group = fn group ->
+  group
+  |> String.split("\n")
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.sum()
+end
+
+puzzle_input
+|> String.split("\n\n")
+|> Enum.map(process_group)
+|> Enum.sort()
+|> Enum.reverse()
+|> (&{hd(&1), &1 |> Enum.take(3) |> Enum.sum()}).()
+```
+
+## Day 2
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "2", session_id)
+```
+
+```elixir
+game_scores = %{win: 6, draw: 3, lose: 0}
+item_scores = %{r: 1, p: 2, s: 3}
+rps_win = %{r: :s, p: :r, s: :p}
+
+if_win = fn
+  [a, a] ->
+    :draw
+
+  [opp, me] ->
+    if Map.get(rps_win, me) == opp do
+      :win
+    else
+      :lose
+    end
+end
+
+total_scores_q1 = fn [opp, me] ->
+  item_score = Map.get(item_scores, me)
+  game_score = Map.get(game_scores, if_win.([opp, me]))
+  game_score + item_score
+end
+
+get_row_score_q1 = fn row ->
+  char_map = %{"A" => :r, "B" => :p, "C" => :s, "X" => :r, "Y" => :p, "Z" => :s}
+
+  row
+  |> String.split(" ")
+  |> Enum.map(&String.first/1)
+  |> Enum.map(&Map.get(char_map, &1))
+  |> total_scores_q1.()
+end
+
+q1 =
+  puzzle_input
+  |> String.split("\n")
+  |> Enum.map(get_row_score_q1)
+  |> Enum.sum()
+```
+
+```elixir
+strategy_gen = fn
+  [opp, :draw] -> opp
+  [opp, :lose] -> Map.get(rps_win, opp)
+  [opp, :win] -> Map.get(rps_win, Map.get(rps_win, opp))
+end
+
+total_scores_q2 = fn [opp, me] ->
+  item_score = Map.get(item_scores, strategy_gen.([opp, me]))
+  game_score = Map.get(game_scores, me)
+  game_score + item_score
+end
+
+get_row_score_q2 = fn row ->
+  char_map = %{"A" => :r, "B" => :p, "C" => :s, "X" => :lose, "Y" => :draw, "Z" => :win}
+
+  row
+  |> String.split(" ")
+  |> Enum.map(&String.first/1)
+  |> Enum.map(&Map.get(char_map, &1))
+  |> total_scores_q2.()
+end
+
+puzzle_input
+|> String.split("\n")
+|> Enum.map(get_row_score_q2)
+|> Enum.sum()
+```
+
+## Day3
+
+```elixir
+session_id =
+  "session_id"
+
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "3", session_id)
+```
+
+```elixir
+test_input = "vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw"
+
+make_counter = fn values ->
+  Enum.reduce(values, %{}, fn x, acc ->
+    Map.update(acc, x, 1, &(&1 + 1))
+  end)
+end
+
+process_char = fn
+  char when char >= 97 -> char - 96
+  char when char < 97 -> char - 65 + 27
+end
+
+process_part = fn part ->
+  part |> String.to_charlist() |> Enum.map(process_char) |> Enum.into(MapSet.new())
+end
+
+process_row = fn row ->
+  len = String.length(row)
+  lr = String.split_at(row, div(len, 2))
+  [lc, rc] = lr |> Tuple.to_list() |> Enum.map(process_part)
+  MapSet.intersection(lc, rc) |> Enum.at(0)
+end
+
+process_input_q1 = fn input ->
+  input
+  |> String.split("\n")
+  |> Enum.map(process_row)
+  |> Enum.sum()
+end
+
+test_input |> process_input_q1.()
+puzzle_input |> process_input_q1.()
+```
+
+```elixir
+process_g3 = fn g3 ->
+  mg3 = g3 |> Enum.map(process_part)
+  mg3 |> Enum.reduce(&MapSet.intersection(&1, &2)) |> Enum.at(0)
+end
+
+process_input_q2 = fn input ->
+  input
+  |> String.split("\n")
+  |> Enum.chunk_every(3)
+  |> Enum.map(process_g3)
+  |> Enum.sum()
+end
+
+test_input |> process_input_q2.()
+puzzle_input |> process_input_q2.()
+```
+
+## Day 4
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "4", session_id)
+```
+
+```elixir
+test_input = "2-4,6-8
+2-3,4-5
+5-7,7-9
+2-8,3-7
+6-6,4-6
+2-6,4-8"
+
+process_row_q1 = fn row ->
+  [a, b, c, d] =
+    row
+    |> String.split([",", "-"])
+    |> Enum.map(&String.to_integer/1)
+
+  (a <= c and d <= b) or (c <= a and b <= d)
+end
+
+process_input_q1 = fn input ->
+  input
+  |> String.split("\n")
+  |> Enum.filter(process_row_q1)
+  |> length
+end
+
+# test_input |> process_input_q1.()
+puzzle_input |> process_input_q1.()
+```
+
+```elixir
+process_row_q2 = fn row ->
+  [a, b, c, d] =
+    row
+    |> String.split([",", "-"])
+    |> Enum.map(&String.to_integer/1)
+
+  !(b < c) and !(d < a)
+end
+
+process_input_q2 = fn input ->
+  input
+  |> String.split("\n")
+  |> Enum.filter(process_row_q2)
+  |> length
+end
+
+test_input |> process_input_q2.()
+puzzle_input |> process_input_q2.()
+```
+
+## Day 5
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "5", session_id)
+```
+
+```elixir
+test_input = "    [D]    
+[N] [C]    
+[Z] [M] [P]
+ 1   2   3 
+
+move 1 from 2 to 1
+move 3 from 1 to 3
+move 2 from 2 to 1
+move 1 from 1 to 2"
+
+col_width = 4
+char_pos = 1
+
+split_head_rows = fn row ->
+  row
+  |> String.to_charlist()
+  |> Enum.chunk_every(col_width)
+  |> Enum.map(&Enum.at(&1, char_pos))
+end
+
+process_numbers = fn char_list ->
+  {nums, ord} =
+    char_list
+    |> Enum.reject(&(&1 == ?\s))
+    |> Enum.split(-1)
+
+  {Enum.at(ord, 0) - ?0, nums}
+end
+
+process_body_row = fn row ->
+  String.split(row, ["move ", " from ", " to "])
+  |> Enum.drop(1)
+  |> Enum.map(&String.to_integer/1)
+end
+
+move_1_step_q1 = fn codes, old ->
+  [n, from, to] = codes
+  to_move = old |> Map.get(from) |> Enum.take(n) |> Enum.reverse()
+  left = old |> Map.get(from) |> Enum.drop(n)
+
+  old
+  |> Map.replace!(to, to_move ++ Map.get(old, to))
+  |> Map.replace!(from, left)
+end
+
+move_1_step_q2 = fn codes, old ->
+  [n, from, to] = codes
+  to_move = old |> Map.get(from) |> Enum.take(n)
+  left = old |> Map.get(from) |> Enum.drop(n)
+
+  old
+  |> Map.replace!(to, to_move ++ Map.get(old, to))
+  |> Map.replace!(from, left)
+end
+
+process_input = fn input ->
+  [head, body] = input |> String.split("\n\n")
+
+  state =
+    head
+    |> String.split("\n")
+    # |> Enum.reverse() |> tl() |> Enum.reverse() # remove last row
+    |> Enum.map(split_head_rows)
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+    |> Enum.map(process_numbers)
+    |> Map.new()
+    |> IO.inspect()
+
+  body
+  |> String.split("\n")
+  |> Enum.map(process_body_row)
+  |> Enum.reduce(state, move_1_step_q1)
+  |> Map.to_list()
+  |> Enum.sort_by(&Kernel.elem(&1, 0))
+  |> Enum.map(fn {_, e} -> hd(e) end)
+  |> IO.inspect()
+
+  body
+  |> String.split("\n")
+  |> Enum.map(process_body_row)
+  |> Enum.reduce(state, move_1_step_q2)
+  |> Map.to_list()
+  |> Enum.sort_by(&Kernel.elem(&1, 0))
+  |> Enum.map(fn {_, e} -> hd(e) end)
+  |> IO.inspect()
+end
+
+test_input |> process_input.()
+puzzle_input |> process_input.()
+```
+
+## Day 6
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "6", session_id)
+```
+
+```elixir
+test_inputs = [
+  "bvwbjplbgvbhsrlpgdmjqwftvncz",
+  "nppdvjthqldpwncqszvftbrmjlhg",
+  "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg",
+  "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw"
+]
+
+# n = 4
+n = 14
+
+step_process_input = fn next, {index, queue} ->
+  group = [next | queue]
+
+  if group |> Enum.uniq() |> length < n do
+    new_queue = group |> Enum.reverse() |> tl() |> Enum.reverse()
+    {:cont, {index + 1, new_queue}}
+  else
+    {:halt, index}
+  end
+end
+
+process_input = fn input ->
+  {head, rest} =
+    input
+    |> String.to_charlist()
+    |> Enum.split(n - 1)
+
+  queue = head |> Enum.reverse()
+
+  rest
+  |> Enum.reduce_while({n, queue}, step_process_input)
+  |> IO.inspect()
+end
+
+test_inputs
+|> Enum.map(process_input)
+
+process_input.(puzzle_input)
+```
+
+## Day 7
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "7", session_id)
+```
+
+```elixir
+test_input = "$ cd /
+$ ls
+dir a
+14848514 b.txt
+8504156 c.dat
+dir d
+$ cd a
+$ ls
+dir e
+29116 f
+2557 g
+62596 h.lst
+$ cd e
+$ ls
+584 i
+$ cd ..
+$ cd ..
+$ cd d
+$ ls
+4060174 j
+8033020 d.log
+5626152 d.ext
+7214296 k"
+
+# Assume no dir called dir
+# Assume in root at first
+
+build_map = fn next, {path_map, path} ->
+  new_map = path_map
+
+  case next do
+    "$ cd /" ->
+      {new_map, ["/"]}
+
+    "$ cd .." ->
+      {new_map, tl(path)}
+
+    "$ cd " <> dir ->
+      {new_map, [dir | path]}
+
+    "$ ls" ->
+      {new_map, path}
+
+    "dir " <> _ ->
+      {path_map, path}
+
+    dir_line ->
+      [size_str, name] = dir_line |> String.split(" ")
+      size = size_str |> String.to_integer()
+
+      new_map =
+        Map.update(path_map, path, %{name => size}, fn path_info ->
+          Map.put(path_info, name, size)
+        end)
+
+      {new_map, path}
+  end
+end
+
+get_sizes = fn input ->
+  {path_map, _} =
+    input
+    |> String.split("\n")
+    |> Enum.reduce({%{}, ["/"]}, build_map)
+
+  size_map =
+    path_map
+    |> Enum.map(fn {k, v} ->
+      {k, v |> Map.values() |> Enum.sum()}
+    end)
+
+  size_map
+  |> Enum.reduce(
+    %{},
+    fn next, fullsize_map ->
+      {dir, size} = next
+
+      dir
+      |> Enum.reverse()
+      |> Enum.scan([], fn next, acc -> [next | acc] end)
+      |> Enum.reduce(fullsize_map, fn next, acc ->
+        Map.update(acc, next, size, fn s -> s + size end)
+      end)
+    end
+  )
+end
+
+q1 = fn input ->
+  input
+  |> get_sizes.()
+  # |> IO.inspect()
+  |> Enum.map(&elem(&1, 1))
+  |> Enum.filter(&(&1 < 100_000))
+  |> Enum.sum()
+end
+
+q1.(test_input)
+q1.(puzzle_input)
+
+space_all = 70_000_000
+space_need = 30_000_000
+
+q2 = fn input ->
+  sizes =
+    input
+    |> get_sizes.()
+
+  used =
+    sizes
+    |> Map.get(["/"])
+
+  input
+  |> get_sizes.()
+  |> Enum.map(&elem(&1, 1))
+  |> Enum.sort()
+  |> Enum.drop_while(&(space_all - used + &1 < space_need))
+  |> hd
+end
+
+q2.(test_input)
+q2.(puzzle_input)
+```
+
+## Day 8
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "8", session_id)
+test_input = "30373
+25512
+65332
+33549
+35390"
+```
+
+```elixir
+process = fn input ->
+  len =
+    input
+    |> String.split("\n")
+    |> length
+
+  process_row = fn index, row ->
+    row
+    |> String.to_charlist()
+    |> Enum.map(&(&1 - ?0))
+    |> Enum.with_index()
+    |> Enum.map(fn {k, v} -> {{index, v}, k} end)
+
+    # |> Enum.into(%{})
+  end
+
+  tree_map =
+    input
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.map(fn {row, v} -> process_row.(v, row) end)
+    # |> Enum.concat()
+    |> List.flatten()
+    |> Enum.into(%{})
+
+  start = 0
+  ends = len - 1
+
+  step_row_gen = fn dir ->
+    get_index =
+      case dir do
+        :t -> &{&2, &1}
+        :b -> &{len - 1 - &2, &1}
+        :l -> &{&1, &2}
+        :r -> &{&1, len - 1 - &2}
+      end
+
+    fn ri, {see_able, block} ->
+      {new_block, new_see_able} =
+        0..ends
+        |> Enum.map(&{get_index.(&1, ri), Map.get(tree_map, get_index.(&1, ri))})
+        |> Enum.zip(block)
+        |> Enum.map_reduce(see_able, fn
+          {{index, i}, o}, acc when i > o -> {i, MapSet.put(acc, index)}
+          {_, o}, acc -> {o, acc}
+        end)
+
+      {new_see_able, new_block}
+    end
+  end
+
+  q1 =
+    [:t, :b, :l, :r]
+    |> Enum.map(&{List.duplicate(-1, len), &1})
+    |> Enum.reduce(MapSet.new(), fn {block, dir}, see_able ->
+      step_row = step_row_gen.(dir)
+
+      start..ends
+      |> Enum.reduce({see_able, block}, step_row)
+      |> elem(0)
+
+      # |> IO.inspect()
+    end)
+    |> MapSet.size()
+
+  calc_for_tree = fn
+    {0, _} ->
+      0
+
+    {_, 0} ->
+      0
+
+    {^ends, _} ->
+      0
+
+    {_, ^ends} ->
+      0
+
+    {x, y} ->
+      h = Map.get(tree_map, {x, y})
+
+      [:d, :u, :l, :r]
+      |> Enum.map(fn dir ->
+        1..len
+        |> Enum.reduce_while(
+          0,
+          fn n_steps, acc ->
+            to_try =
+              case dir do
+                :d -> {x, y - n_steps}
+                :u -> {x, y + n_steps}
+                :l -> {x - n_steps, y}
+                :r -> {x + n_steps, y}
+              end
+
+            case to_try do
+              {-1, _} ->
+                {:halt, acc}
+
+              {_, -1} ->
+                {:halt, acc}
+
+              {^len, _} ->
+                {:halt, acc}
+
+              {_, ^len} ->
+                {:halt, acc}
+
+              tree_pos ->
+                ifloop =
+                  if h > Map.get(tree_map, tree_pos) do
+                    :cont
+                  else
+                    :halt
+                  end
+
+                {ifloop, acc + 1}
+            end
+          end
+        )
+      end)
+      |> Enum.product()
+  end
+
+  q2 =
+    start..ends
+    |> Enum.map(fn x ->
+      start..ends
+      |> Enum.map(fn y -> calc_for_tree.({x, y}) end)
+      |> Enum.max()
+    end)
+    |> Enum.max()
+
+  {q1, q2}
+end
+
+test_input
+|> process.()
+
+puzzle_input
+|> process.()
+```
+
+## Day 9
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "9", session_id)
+test_input = "R 4
+U 4
+L 3
+D 1
+R 4
+D 1
+L 5
+R 2"
+test_input_2 = "R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20"
+```
+
+```elixir
+defmodule D9 do
+  def process_row(row) do
+    [dir, steps_str] = row |> String.split(" ")
+    steps = String.to_integer(steps_str)
+
+    case dir do
+      "R" -> {&{&1, &2 + &3}, steps}
+      "U" -> {&{&1 - &3, &2}, steps}
+      "D" -> {&{&1 + &3, &2}, steps}
+      "L" -> {&{&1, &2 - &3}, steps}
+    end
+  end
+
+  def tail_move_coord(new_head_pos, tail_pos) do
+    cond do
+      new_head_pos > tail_pos -> tail_pos + 1
+      new_head_pos < tail_pos -> tail_pos - 1
+      new_head_pos == tail_pos -> tail_pos
+    end
+  end
+
+  def tail_move(new_head_pos, tail_pos) do
+    {hn_x, hn_y} = new_head_pos
+    {t_x, t_y} = tail_pos
+
+    cond do
+      abs(hn_x - t_x) < 2 and abs(hn_y - t_y) < 2 -> tail_pos
+      true -> {tail_move_coord(hn_x, t_x), tail_move_coord(hn_y, t_y)}
+    end
+  end
+
+  def trace_pos({dir, steps}, {all_pos, trace}) do
+    {h_x, h_y} = hd(all_pos)
+    new_front_pos = dir.(h_x, h_y, steps)
+
+    {new_tails_pos, new_tail_pos} =
+      tl(all_pos)
+      |> Enum.map_reduce(new_front_pos, fn next_pos, curr_front_pos ->
+        new_next_pos = tail_move(curr_front_pos, next_pos)
+        # IO.inspect(curr_front_pos, label: "tail_move curr_front_pos")
+        # IO.inspect(next_pos, label: "tail_move next_pos")
+        # IO.inspect(new_next_pos, label: "tail_move new_next_pos")
+        {curr_front_pos, new_next_pos}
+      end)
+
+    new_all_pos = new_tails_pos ++ [new_tail_pos]
+    # |> IO.inspect()
+    {new_all_pos, [new_tail_pos | trace]}
+  end
+
+  def trace_pos_multiple({dir, steps}, state) do
+    List.duplicate({dir, 1}, steps)
+    |> Enum.reduce(state, &trace_pos/2)
+  end
+
+  def process(input) do
+    cmds =
+      input
+      |> String.split("\n")
+      |> Enum.map(&process_row/1)
+
+    tail_len = fn cmds, body_len ->
+      cmds
+      |> Enum.reduce({List.duplicate({0, 0}, body_len), [{0, 0}]}, &trace_pos_multiple/2)
+      |> elem(1)
+      |> Enum.uniq()
+      |> length
+    end
+
+    {tail_len.(cmds, 2), tail_len.(cmds, 10)}
+  end
+end
+
+test_input
+|> D9.process()
+
+test_input_2
+|> D9.process()
+
+puzzle_input
+|> D9.process()
+```
+
+## Day 10
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "10", session_id)
+
+test_input = "noop
+addx 3
+addx -5"
+test_input_2_box = Kino.Input.textarea("Test Input 2")
+```
+
+```elixir
+test_input2 = Kino.Input.read(test_input_2_box)
+```
+
+```elixir
+defmodule D10 do
+  def interpret(ins, states) do
+    %{x: x} = states
+
+    case ins do
+      "noop" ->
+        states |> Map.update!(:x_history, &[x | &1])
+
+      "addx " <> num_str ->
+        new_x = x + String.to_integer(num_str)
+
+        states
+        |> Map.put(:x, new_x)
+        |> Map.update!(:x_history, &[new_x | [x | &1]])
+    end
+  end
+
+  def pixel_hit?(val, i) do
+    h_pos = rem(i, 40)
+
+    cond do
+      val > h_pos + 1 -> "."
+      val < h_pos - 1 -> "."
+      true -> "#"
+    end
+  end
+
+  def process(input) do
+    history =
+      input
+      |> String.split("\n")
+      |> Enum.reduce(
+        %{x_history: [1], x: 1},
+        &interpret/2
+      )
+      |> Map.get(:x_history)
+      |> Enum.reverse()
+
+    q1 =
+      1..6
+      |> Enum.map(&(&1 * 40 - 20))
+      |> Enum.map(&(Enum.at(history, &1 - 1) * &1))
+      |> Enum.sum()
+
+    q2 =
+      history
+      |> Enum.with_index(&pixel_hit?/2)
+      |> Enum.chunk_every(40)
+      |> Enum.map(&Enum.join/1)
+      |> Enum.join("\n")
+      |> IO.puts()
+
+    q1
+  end
+end
+
+D10.process(test_input2)
+D10.process(puzzle_input)
+```
+
+## D11
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "11", session_id)
+
+test_input_1_box = Kino.Input.textarea("Test Input 1")
+```
+
+```elixir
+test_input1 = Kino.Input.read(test_input_1_box)
+```
+
+```elixir
+defmodule Monkey do
+  def parse_eq(s) do
+    [a, op_str, b] = s |> String.split(" ")
+
+    op =
+      case op_str do
+        "*" -> &*/2
+        "+" -> &+/2
+      end
+
+    case {a, b} do
+      {"old", "old"} -> &op.(&1, &1)
+      {"old", _} -> &op.(&1, String.to_integer(b))
+    end
+  end
+
+  def new_from_str(s, modifier) do
+    ["Monkey " <> id_str | properties] = s |> String.split("\n")
+    id = id_str |> String.replace_trailing(":", "") |> String.to_integer()
+    [items_str | [op_str | rest]] = properties
+
+    items =
+      items_str
+      |> String.split(": ")
+      |> Enum.reverse()
+      |> hd()
+      |> String.split(", ")
+      |> Enum.map(&String.to_integer/1)
+
+    op = op_str |> String.split("= ") |> Enum.reverse() |> hd() |> parse_eq
+
+    [test_div, test_true, test_false] =
+      rest
+      |> Enum.map(fn s ->
+        s
+        |> String.split(" ")
+        |> Enum.reverse()
+        |> hd()
+        |> String.to_integer()
+      end)
+
+    test = fn num ->
+      if rem(num, test_div) == 0 do
+        test_true
+      else
+        test_false
+      end
+    end
+
+    # {id, items, op_str, op, [test_div, test_true, test_false], test}
+    {{id, items |> Enum.reverse()}, %{id: id, operation: &modifier.(op, &1), test: test}}
+  end
+
+  def inspect_items(monkey, items_map) do
+    pending_items = items_map[monkey[:id]]
+
+    result_map =
+      pending_items
+      |> Enum.reverse()
+      |> Enum.reduce(
+        items_map,
+        fn item, acc ->
+          worry_lvl = monkey[:operation].(item)
+          send_to = monkey[:test].(worry_lvl)
+          Map.update!(acc, send_to, fn lst -> [worry_lvl | lst] end)
+        end
+      )
+
+    {Map.put(result_map, monkey[:id], []), length(pending_items)}
+  end
+end
+
+defmodule D11 do
+  def empty?(msg) do
+    0 ==
+      msg
+      |> Enum.filter(&(length(elem(&1, 1)) > 0))
+      |> length
+  end
+
+  def monkey_inspect_all(monkeys, items, records, rounds_left) do
+    {new_records, new_items} =
+      monkeys
+      |> Enum.zip(records)
+      |> Enum.map_reduce(items, fn {monke, rec}, curr_items ->
+        {next_items, n_ops} = monke |> Monkey.inspect_items(curr_items)
+        {rec + n_ops, next_items}
+      end)
+
+    if rounds_left <= 0 do
+      records |> Enum.sort() |> Enum.reverse() |> Enum.take(2) |> Enum.product()
+    else
+      monkey_inspect_all(monkeys, new_items, new_records, rounds_left - 1)
+    end
+  end
+
+  def process(input) do
+    splited_input =
+      input
+      |> String.split("\n\n")
+
+    n_monkeys = length(splited_input)
+
+    {items, q1_monkeys} =
+      splited_input
+      |> Enum.map(fn ms -> Monkey.new_from_str(ms, &div(&1.(&2), 3)) end)
+      |> Enum.unzip()
+
+    items_map = items |> Map.new()
+
+    q1 = monkey_inspect_all(q1_monkeys, items_map, List.duplicate(0, n_monkeys), 20)
+
+    mul =
+      splited_input
+      |> Enum.map(fn ms ->
+        ms
+        |> String.split("divisible by ")
+        |> Enum.at(1)
+        |> String.split(" ")
+        |> hd()
+        |> String.trim()
+        |> String.to_integer()
+      end)
+      |> Enum.product()
+
+    {items, q2_monkeys} =
+      splited_input
+      |> Enum.map(fn ms -> Monkey.new_from_str(ms, &rem(&1.(&2), mul)) end)
+      |> Enum.unzip()
+
+    items_map = items |> Map.new()
+
+    q2 = monkey_inspect_all(q2_monkeys, items_map, List.duplicate(0, n_monkeys), 10000)
+
+    %{q1: q1, q2: q2}
+    |> IO.inspect(charlists: :as_lists)
+  end
+end
+
+D11.process(test_input1)
+D11.process(puzzle_input)
+```
+
+## Matrix Utils
+
+```elixir
+defmodule MatrixMap do
+  defstruct [:map, :size]
+
+  def new_from_str(input) do
+    h =
+      input
+      |> String.split("\n")
+      |> length()
+
+    w =
+      input
+      |> String.split("\n")
+      |> hd()
+      |> String.length()
+
+    process_row = fn index, row ->
+      row
+      |> String.to_charlist()
+      |> Enum.with_index()
+      |> Enum.map(fn {k, v} -> {{index, v}, k} end)
+    end
+
+    map =
+      input
+      |> String.split("\n")
+      |> Enum.with_index()
+      |> Enum.map(fn {row, v} -> process_row.(v, row) end)
+      # |> Enum.concat()
+      |> List.flatten()
+      |> Enum.into(%{})
+
+    %__MODULE__{map: map, size: {h, w}}
+  end
+
+  def move_options(mat, {y, x}) do
+    {h, w} = mat.size
+
+    filter_opt = fn opts, f_cond, f_opt ->
+      if f_cond do
+        MapSet.delete(opts, f_opt)
+      else
+        opts
+      end
+    end
+
+    MapSet.new([{y + 1, x}, {y - 1, x}, {y, x + 1}, {y, x - 1}])
+    |> filter_opt.(y >= h - 1, {y + 1, x})
+    |> filter_opt.(y <= 0, {y - 1, x})
+    |> filter_opt.(x >= w - 1, {y, x + 1})
+    |> filter_opt.(x <= 0, {y, x - 1})
+  end
+
+  def update(mat, loc, val) do
+    %{mat | map: %{mat.map | loc => val}}
+  end
+end
+```
+
+## D12
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "12", session_id)
+
+test_input_1_box = Kino.Input.textarea("Test Input 1")
+```
+
+```elixir
+test_input1 = Kino.Input.read(test_input_1_box)
+```
+
+```elixir
+defmodule D12 do
+  def get_start_end(mat) do
+    {Enum.find(mat.map, fn {_, val} -> val == ?S end) |> elem(0),
+     Enum.find(mat.map, fn {_, val} -> val == ?E end) |> elem(0)}
+  end
+
+  def bfs_goal([], _, _, _, _, min_steps) do
+    min_steps
+  end
+
+  def bfs_goal([{pos, n_steps} | rest], goal?, valid_move?, get_opts, visited, min_steps) do
+    if goal?.(pos) do
+      min(n_steps, min_steps)
+    else
+      next_opts =
+        pos
+        |> get_opts.()
+        |> Enum.filter(&valid_move?.(pos, &1))
+        |> Enum.filter(&(!MapSet.member?(visited, &1)))
+
+      bfs_goal(
+        rest ++ Enum.map(next_opts, &{&1, n_steps + 1}),
+        goal?,
+        valid_move?,
+        get_opts,
+        MapSet.union(visited, MapSet.new(next_opts)),
+        min_steps
+      )
+    end
+  end
+
+  def bfs_goal_helper(pos, goal?, valid_move?, get_opts) do
+    bfs_goal([{pos, 0}], goal?, valid_move?, get_opts, MapSet.new([pos]), :infinity)
+  end
+
+  def process(input) do
+    raw_mat =
+      input
+      |> MatrixMap.new_from_str()
+
+    {start, goal} =
+      raw_mat
+      |> get_start_end()
+
+    mat =
+      raw_mat
+      |> MatrixMap.update(start, ?a)
+      |> MatrixMap.update(start, ?z)
+
+    get_opts = &MatrixMap.move_options(mat, &1)
+
+    q1 =
+      bfs_goal_helper(
+        start,
+        &(&1 == goal),
+        fn pos, new_pos -> mat.map[new_pos] <= mat.map[pos] + 1 end,
+        get_opts
+      )
+
+    q2 =
+      bfs_goal_helper(
+        goal,
+        &(mat.map[&1] == ?a),
+        fn pos, new_pos -> mat.map[pos] <= mat.map[new_pos] + 1 end,
+        get_opts
+      )
+
+    {q1, q2}
+    |> IO.inspect()
+  end
+end
+
+# :eprof.start_profiling([self()])
+D12.process(test_input1)
+D12.process(puzzle_input)
+# :eprof.stop_profiling()
+# :eprof.analyze()
+```
+
+## D13
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "12", session_id)
+
+test_input_1_box = Kino.Input.textarea("Test Input 1")
+```
+
+```elixir
+test_input1 = Kino.Input.read(test_input_1_box)
+
+defmodule D13 do
+  def process(input) do
+  end
+end
+
+D12.process(test_input1)
+D12.process(puzzle_input)
+```
