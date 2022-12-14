@@ -1,6 +1,7 @@
 # AOC2022
 
-```elixir Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
 ```
 
 ## Setup
@@ -110,7 +111,7 @@ puzzle_input
 
 ```elixir
 session_id =
-  "session_id"
+  "53616c7465645f5ff516194a307d95813a15168145feb6dfeac9ed1f00d2a9da829751f4c0efb36b9f8a8f24c1f35b1ba36ecc87ef308062129cb2581fbad83a"
 
 {:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "3", session_id)
 ```
@@ -1163,10 +1164,257 @@ test_input_1_box = Kino.Input.textarea("Test Input 1")
 test_input1 = Kino.Input.read(test_input_1_box)
 
 defmodule D13 do
+  def parse_pair(str) do
+    str |> String.split("\n") |> Enum.map(&Code.eval_string/1) |> Enum.map(&elem(&1, 0))
+  end
+
+  def compare([[], []]) do
+    :meh
+  end
+
+  def compare([[_ | _], []]) do
+    # IO.inspect("right empty")
+    false
+  end
+
+  def compare([[], [_ | _]]) do
+    # IO.inspect("left empty")
+    true
+  end
+
+  def compare([[head_l | rest_l], [head_r | rest_r]])
+      when is_integer(head_l) and is_integer(head_r) do
+    # IO.inspect([[head_l|rest_l], [head_r|rest_r]]) 
+    cond do
+      head_l > head_r -> false
+      head_l < head_r -> true
+      head_l == head_r -> compare([rest_l, rest_r])
+    end
+  end
+
+  def compare([[head_l | rest_l], [head_r | rest_r]])
+      when is_list(head_l) and is_list(head_r) do
+    # IO.inspect([[head_l|rest_l], [head_r|rest_r]]) 
+    case compare([head_l, head_r]) do
+      :meh -> compare([rest_l, rest_r])
+      bool -> bool
+    end
+  end
+
+  def compare([[head_l | rest_l], [head_r | rest_r]]) do
+    # IO.inspect([[head_l|rest_l], [head_r|rest_r]]) 
+    new_head_l =
+      if is_integer(head_l) do
+        [head_l]
+      else
+        head_l
+      end
+
+    new_head_r =
+      if is_integer(head_r) do
+        [head_r]
+      else
+        head_r
+      end
+
+    compare([[new_head_l | rest_l], [new_head_r | rest_r]])
+  end
+
+  def process(input) do
+    q1 =
+      input
+      |> String.split("\n\n")
+      |> Enum.map(&parse_pair/1)
+      |> Enum.map(&compare/1)
+      |> Enum.with_index()
+      |> Enum.filter(&elem(&1, 0))
+      |> Enum.map(&(elem(&1, 1) + 1))
+      |> IO.inspect(charlists: :as_lists)
+      |> Enum.sum()
+      |> IO.inspect()
+
+    dividers = [[[2]], [[6]]]
+
+    q2 =
+      input
+      |> String.split(["\n\n", "\n"])
+      |> Enum.map(&Code.eval_string/1)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.concat(dividers)
+      |> Enum.sort(&compare([&1, &2]))
+      |> Enum.with_index()
+      |> Enum.into(%{})
+      |> (fn rank -> Enum.map(dividers, &(rank[&1] + 1)) end).()
+      |> Enum.product()
+      |> IO.inspect()
+
+    {q1, q2}
+  end
+end
+
+# D13.process(test_input1)
+D13.process(puzzle_input)
+```
+
+## D14
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "14", session_id)
+
+test_input_1_box = Kino.Input.textarea("Test Input 1")
+```
+
+```elixir
+test_input_1 = Kino.Input.read(test_input_1_box)
+
+defmodule D14 do
+  def to_coords(row) do
+    row
+    |> String.split(" -> ")
+    |> Enum.map(fn coord_str ->
+      String.split(coord_str, ",")
+      |> Enum.map(&String.to_integer/1)
+    end)
+  end
+
+  def intoplate({[x, y1], [x, y2]}) do
+    ymin = min(y1, y2)
+    ymax = max(y1, y2)
+
+    ymin..ymax
+    |> Enum.map(&{x, &1})
+    |> Enum.into(MapSet.new())
+  end
+
+  def intoplate({[x1, y], [x2, y]}) do
+    ymin = min(x1, x2)
+    ymax = max(x1, x2)
+
+    ymin..ymax
+    |> Enum.map(&{&1, y})
+  end
+
+  def line_process(row) do
+    row
+    |> Enum.zip(row |> tl())
+    |> Enum.map(&intoplate/1)
+    |> Enum.concat()
+    |> Enum.into(MapSet.new())
+  end
+
+  def add_to_set(next, set) do
+    set |> MapSet.union(line_process(next))
+  end
+
+  def trace_rec(floor, {x, y}, empty?) do
+    # IO.inspect({x, y})
+    next_pos = {x, y + 1}
+
+    cond do
+      y > floor ->
+        :finished
+
+      empty?.(next_pos) ->
+        trace_rec(floor, next_pos, empty?)
+
+      true ->
+        left_pos = {x - 1, y + 1}
+
+        if empty?.(left_pos) do
+          trace_rec(floor, left_pos, empty?)
+        else
+          right_pos = {x + 1, y + 1}
+
+          cond do
+            empty?.(right_pos) -> trace_rec(floor, right_pos, empty?)
+            y == 0 -> :finished
+            true -> {:landed, {x, y}}
+          end
+        end
+    end
+  end
+
+  def empty?({_, infite_floor}, _, infite_floor, false) do
+    false
+  end
+
+  def empty?(pos, walls, _, _) do
+    # IO.inspect({pos, floor, endless?})
+    !MapSet.member?(walls, pos)
+    # |> IO.inspect()
+  end
+
+  def view(walls) do
+    0..10
+    |> Enum.map(fn x ->
+      490..510
+      |> Enum.map(fn y ->
+        cond do
+          MapSet.member?(walls, {y, x}) -> ?#
+          true -> ?.
+        end
+      end)
+      |> List.to_string()
+    end)
+    |> Enum.join("\n")
+    |> IO.puts()
+  end
+
+  def hit_rec(count, floor, walls, endless?) do
+    # IO.inspect(count)
+    init_pos = {500, 0}
+    trace_result = trace_rec(floor, init_pos, &empty?(&1, walls, floor, endless?))
+
+    case trace_result do
+      {:landed, last_pos} ->
+        new_walls = walls |> MapSet.put(last_pos)
+        hit_rec(count + 1, floor, new_walls, endless?)
+
+      :finished ->
+        walls
+        |> MapSet.put(init_pos)
+        |> view()
+
+        count
+    end
+  end
+
+  def process(input) do
+    rocks =
+      input
+      |> String.split("\n")
+      |> Enum.map(&to_coords/1)
+      |> Enum.reduce(MapSet.new(), &add_to_set/2)
+
+    # |> IO.inspect()
+
+    floor = rocks |> Enum.map(&elem(&1, 1)) |> Enum.max()
+    q1 = hit_rec(0, floor, rocks, true)
+    q2 = hit_rec(0, floor + 2, rocks, false) + 1
+    {q1, q2}
+  end
+end
+
+D14.process(test_input_1)
+D14.process(puzzle_input)
+```
+
+## D15
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "15", session_id)
+
+test_input_1_box = Kino.Input.textarea("Test Input 1")
+```
+
+```elixir
+test_input_1 = Kino.Input.read(test_input_1_box)
+
+defmodule D15 do
   def process(input) do
   end
 end
 
-# D12.process(test_input1)
-D12.process(puzzle_input)
+D15.process(test_input_1)
+D15.process(puzzle_input)
 ```
